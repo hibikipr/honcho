@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Honcho Memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070a18;--surface:rgba(11,16,36,.82);--solid:#0e1430;--border:#1d2754;--text:#e6e9f5;--muted:#8a93b3;--blue:#4cc9ff;--gold:#e8c36a;--teal:#4ce6d2;--red:#ff4d5e}
+*{box-sizing:border-box}
+body{margin:0;color:var(--text);font-family:'Chakra Petch',system-ui,-apple-system,'Segoe UI',sans-serif;min-height:100vh;
+background:
+ repeating-radial-gradient(circle at 50% 40%,transparent 0 70px,rgba(120,140,255,.05) 70px 72px),
+ radial-gradient(1200px 700px at 85% -10%,rgba(76,201,255,.14),transparent 60%),
+ radial-gradient(900px 600px at -10% 40%,rgba(255,77,94,.07),transparent 60%),
+ radial-gradient(900px 700px at 50% 110%,rgba(92,255,122,.06),transparent 60%),var(--bg);background-attachment:fixed}
+.mono{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 56px}
+.top{background:rgba(7,10,24,.86);border-bottom:1px solid rgba(76,201,255,.35);box-shadow:0 0 24px rgba(76,201,255,.12),0 8px 24px rgba(0,0,0,.45);backdrop-filter:blur(12px);margin-bottom:32px}
+.top .wrap{padding-top:22px;padding-bottom:22px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between}
+h1{font-family:'Michroma',sans-serif;font-weight:400;font-size:30px;letter-spacing:.06em;color:var(--gold);text-shadow:0 0 14px rgba(232,195,106,.45);margin:0;line-height:1.2}
+.tagline{font-size:15px;color:var(--muted);margin-top:4px}
+.row{display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid rgba(76,201,255,.22);border-radius:12px;box-shadow:0 0 28px rgba(76,201,255,.08),0 12px 32px rgba(0,0,0,.45);backdrop-filter:blur(10px);padding:22px;min-width:0}
+.card:hover{border-color:rgba(76,201,255,.42)}
+h2{font-family:'Michroma',sans-serif;font-weight:400;font-size:16px;letter-spacing:.06em;color:var(--gold);text-shadow:0 0 14px rgba(232,195,106,.45);margin:0 0 6px}
+.sub{font-size:14px;color:var(--muted);margin:0 0 18px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border:1px solid rgba(76,201,255,.5);border-radius:999px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);background:rgba(76,201,255,.1)}
+.lbl{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.track{background:var(--solid);border:1px solid var(--border);border-radius:999px;overflow:hidden}
+.fill{height:100%;border-radius:999px}
+.chip{background:var(--solid);border:1px solid var(--border);border-radius:10px}
+.err{border-color:rgba(255,77,94,.5);color:var(--red)}
+@media (prefers-reduced-motion:no-preference){.fill,.bar{transition:width .4s,height .4s}}
+</style>
+</head>
+<body>
+<div class="top"><div class="wrap">
+<div><h1>HONCHO MEMORY</h1><div class="tagline" id="tagline">What Townsville knows about you</div></div>
+<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+<span class="tag" id="health" style="color:var(--muted);border-color:var(--border);background:transparent">Loading</span>
+<span class="mono" style="font-size:13px" id="where"></span>
+<span class="mono" style="font-size:12px;color:var(--muted)" id="stamp"></span>
+</div></div></div>
+
+<main class="wrap" id="app" aria-live="polite"></main>
+
+<script>
+const BL='#4cc9ff',GO='#e8c36a',TE='#4ce6d2',CYC=[BL,GO,TE];
+const $=(t,a={},...k)=>{const e=document.createElement(t);for(const[n,v]of Object.entries(a)){if(n==='style')e.style.cssText=v;else if(n==='class')e.className=v;else e.setAttribute(n,v)}for(const c of k.flat())if(c!=null)e.append(c.nodeType?c:document.createTextNode(c));return e};
+const fmtDay=d=>new Date(d+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+const fmtT=s=>{const d=new Date(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})+', '+d.toISOString().slice(11,16)};
+const card=(title,sub,...body)=>$('section',{class:'card',style:'flex:1 1 360px'},$('h2',{},title),$('p',{class:'sub'},sub),...body);
+const track=(w,c,h=12)=>$('div',{class:'track',style:`height:${h}px`},$('div',{class:'fill',style:`width:${w}%;min-width:8px;background:${c};box-shadow:0 0 12px ${c}66`}));
+
+function render(d){
+  const app=document.getElementById('app');app.replaceChildren();
+  document.getElementById('tagline').textContent='What Townsville knows about '+d.userPeer;
+  const h=document.getElementById('health');h.textContent=d.healthy?'API healthy':'API unreachable';
+  h.style.cssText=d.healthy?'color:var(--teal);border-color:rgba(76,230,210,.5);background:rgba(76,230,210,.1)':'color:var(--red);border-color:rgba(255,77,94,.5);background:rgba(255,77,94,.1)';
+  document.getElementById('where').textContent='honcho.townsville.cc · '+d.workspace;
+  document.getElementById('stamp').textContent='Updated '+fmtT(d.generated)+' UTC · refreshes every minute';
+
+  const lv=d.levels, ded=lv.deductive||0, ind=lv.inductive||0, q=d.queue;
+  const stats=[['Conclusions',d.totals.conclusions.toLocaleString(),Object.entries(d.peers).map(([p,n])=>n+' for '+p).join(', '),GO],
+    ['Sessions',d.totals.sessions,'across '+Object.keys(d.peers).length+' peers',BL],
+    ['Messages saved',d.totals.messages.toLocaleString(),'in all sessions',BL],
+    ['Reasoned insights',ded+ind,ded+' deductive, '+ind+' inductive',TE],
+    ['Memory queue',q.completed_work_units+'/'+q.total_work_units,q.in_progress_work_units+' in progress, '+q.pending_work_units+' waiting',GO]];
+  app.append($('div',{class:'row'},stats.map(([l,v,n,c])=>$('div',{class:'card',style:'flex:1 1 200px'},
+    $('div',{class:'lbl'},l),$('div',{class:'mono',style:`font-size:40px;font-weight:600;line-height:1.2;margin:8px 0 4px;color:${c};text-shadow:0 0 18px ${c}73`},String(v)),$('div',{style:'font-size:14px;color:var(--muted)'},n)))));
+
+  // per-day bars
+  const peers=Object.keys(d.peers).sort((a,b)=>(a==='claude')-(b==='claude')), pc={};
+  peers.forEach((p,i)=>pc[p]=i===0?GO:BL);
+  const max=Math.max(1,...d.days.map(x=>Object.values(x.peers).reduce((a,b)=>a+b,0)));
+  const cols=d.days.map(x=>{const tot=Object.values(x.peers).reduce((a,b)=>a+b,0);
+    const segs=peers.map(p=>$('div',{class:'bar',style:`width:100%;max-width:150px;height:${Math.round((x.peers[p]||0)/max*190)}px;background:${pc[p]};box-shadow:0 0 18px ${pc[p]}59`}));
+    return $('div',{style:'flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end'},$('div',{class:'mono',style:'font-weight:600;margin-bottom:6px'},String(tot)),...segs,$('div',{class:'mono',style:'font-size:13px;color:var(--muted);margin-top:8px'},fmtDay(x.day)))});
+  const legend=$('div',{style:'display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;font-size:14px'},peers.map(p=>$('span',{},$('span',{style:`display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;background:${pc[p]}`}),(p==='claude'?"Claude's own memory":'About '+p)+' ('+d.peers[p]+')')));
+  const total=Object.values(lv).reduce((a,b)=>a+b,0)||1;
+  const lvRows=[['Explicit',lv.explicit||0,BL,'Facts stated directly in a message'],['Deductive',ded,GO,'Reasoned from facts it already holds'],['Inductive',ind,TE,'Patterns noticed across many messages']];
+  app.append($('div',{class:'row'},
+    $('section',{class:'card',style:'flex:1 1 440px'},$('h2',{},'MEMORIES PER DAY'),$('p',{class:'sub'},'Conclusions the deriver wrote, by whose memory they belong to'),$('div',{style:'display:flex;gap:40px;align-items:flex-end;min-height:260px;padding:0 12px;border-bottom:1px solid var(--border)'},cols),legend),
+    card('HOW MEMORIES ARE MADE','Most are noted straight from messages. A few are reasoned.',$('div',{style:'display:flex;flex-direction:column;gap:18px'},lvRows.map(([n,c,col,desc])=>$('div',{},$('div',{style:'display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px'},$('span',{},n),$('span',{class:'mono'},String(c))),track(c/total*100,col),$('div',{style:'font-size:13px;color:var(--muted);margin-top:6px'},desc)))))));
+
+  // card + topics
+  const cardRows=d.card.map(line=>{const m=line.match(/^([A-Z]+):\s*(.*)$/);return $('div',{class:'chip',style:'display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;padding:10px 12px'},$('span',{class:'lbl',style:`min-width:74px;color:${m&&m[1]==='IDENTITY'?GO:BL}`},m?m[1].toLowerCase():'note'),$('span',{class:'mono',style:'font-size:13px;overflow-wrap:anywhere'},m?m[2]:line))});
+  const tmax=Math.max(1,...d.topics.map(t=>t.count));
+  app.append($('div',{class:'row'},
+    card('PROFILE CARD','The short profile loaded at the start of every session',$('div',{style:'display:flex;flex-direction:column;gap:10px'},cardRows.length?cardRows:$('div',{style:'color:var(--muted)'},'No profile card yet.'))),
+    $('section',{class:'card',style:'flex:2 1 480px'},$('h2',{},'WHAT COMES UP MOST'),$('p',{class:'sub'},'Conclusions mentioning each topic, out of '+d.totals.conclusions.toLocaleString()),
+      $('div',{style:'display:flex;flex-direction:column;gap:10px'},d.topics.map((t,i)=>$('div',{style:'display:flex;align-items:center;gap:12px'},$('div',{class:'mono',style:'width:104px;font-size:13px;flex:none'},t.name),$('div',{style:'flex:1;min-width:0'},track(t.count/tmax*100,CYC[i%3],14)),$('div',{class:'mono',style:'width:40px;text-align:right;font-size:13px;color:var(--muted);flex:none'},String(t.count))))))));
+
+  // reasoned
+  app.append($('section',{class:'card',style:'margin-bottom:20px'},$('h2',{},'WHAT HONCHO WORKED OUT'),$('p',{class:'sub'},'Conclusions it reasoned out itself, newest first'),
+    $('div',{style:'display:flex;flex-wrap:wrap;gap:14px'},d.reasoned.map(r=>{const c=r.level==='deductive'?GO:TE;return $('div',{class:'chip',style:`flex:1 1 340px;padding:14px 16px;box-shadow:inset 3px 0 0 ${c};min-width:0`},
+      $('div',{style:'display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap'},$('span',{class:'tag',style:`color:${c};border-color:${c}`},r.level),$('span',{class:'tag',style:'color:var(--muted);border-color:var(--border);background:transparent'},r.who)),$('div',{style:'line-height:1.5;overflow-wrap:anywhere'},r.text))}))));
+
+  // recent + sessions
+  const smax=Math.max(1,...d.sessions.map(s=>s.messages));
+  const top4=d.sessions.map(s=>s.messages).sort((a,b)=>b-a).slice(0,4);
+  const first=d.sessions[0],last=d.sessions[d.sessions.length-1];
+  app.append($('div',{class:'row'},
+    $('section',{class:'card',style:'flex:1 1 480px'},$('h2',{},'LATEST MEMORIES'),$('p',{class:'sub'},'The newest things it has noted about '+d.userPeer),
+      $('div',{style:'display:flex;flex-direction:column;gap:14px'},d.recent.map((m,i)=>$('div',{style:'display:flex;gap:14px;align-items:flex-start'},$('div',{style:`flex:none;width:10px;height:10px;margin-top:6px;border-radius:50%;background:${CYC[i%3]};box-shadow:0 0 10px ${CYC[i%3]}`}),$('div',{style:'min-width:0'},$('div',{class:'mono',style:'font-size:12px;color:var(--muted)'},fmtT(m.at)),$('div',{style:'line-height:1.5;overflow-wrap:anywhere'},m.text)))))),
+    $('section',{class:'card',style:'flex:1 1 400px'},$('h2',{},'CONVERSATIONS'),$('p',{class:'sub'},'Messages saved in each of the '+d.sessions.length+' sessions, oldest to newest'),
+      $('div',{style:'display:flex;gap:4px;align-items:flex-end;height:170px;border-bottom:1px solid var(--border)'},d.sessions.map(s=>{const c=s.messages>smax*.5?GO:s.messages>smax*.2?BL:TE;return $('div',{class:'bar',title:s.messages+' messages',style:`flex:1;min-width:0;height:${Math.max(4,Math.round(s.messages/smax*160))}px;background:${c};border-radius:4px 4px 0 0;box-shadow:0 0 10px ${c}`})})),
+      first?$('div',{class:'mono',style:'display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px'},$('span',{},fmtT(first.created)),$('span',{},fmtT(last.created))):null,
+      $('div',{style:'margin-top:16px;line-height:1.5'},'The four longest sessions hold '+top4.reduce((a,b)=>a+b,0)+' of the '+d.totals.messages+' messages: '+top4.join(', ')+'.'))));
+
+  // engine
+  const e=d.engine, eng=[['Reasoning models',e.models.join(', ')||'unknown'],['Embeddings',(e.embedding||'unknown')+(e.dims?', '+e.dims+' dimensions':'')],['Deriver workers',e.workers||'unknown'],['Auth',e.auth?'JWT required on every request':'off'],['Reached via','honcho.townsville.cc (VPN away from home)']];
+  app.append($('section',{class:'card'},$('h2',{},'ENGINE ROOM'),$('p',{class:'sub'},'How this memory runs'),$('div',{style:'display:flex;flex-wrap:wrap;gap:14px'},eng.map(([k,v])=>$('div',{class:'chip',style:'flex:1 1 220px;padding:12px 14px'},$('div',{class:'lbl'},k),$('div',{class:'mono',style:'font-size:14px;margin-top:6px;color:var(--blue);overflow-wrap:anywhere'},v))))));
+}
+
+async function load(){
+  try{const r=await fetch('api/summary',{cache:'no-store'});if(!r.ok)throw new Error(r.status);render(await r.json())}
+  catch(e){const h=document.getElementById('health');h.textContent='Dashboard offline';h.style.cssText='color:var(--red);border-color:rgba(255,77,94,.5);background:rgba(255,77,94,.1)';
+    if(!document.getElementById('app').children.length)document.getElementById('app').append($('div',{class:'card err'},'Could not load memory data. The dashboard service may be starting; this page retries every minute.'))}
+}
+load();setInterval(load,60000);
+</script>
+</body>
+</html>
